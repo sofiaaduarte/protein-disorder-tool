@@ -1,4 +1,5 @@
 import os
+import tempfile
 from Bio import SeqIO
 import numpy as np
 from tqdm import tqdm
@@ -7,7 +8,7 @@ from transformers import T5EncoderModel, T5Tokenizer
 import re 
 import esm
 import sys 
-
+# TODO: chequear si no estoy importando librerias de más!
 
 def get_esm2(fasta_path, output_dir):
     os.makedirs(output_dir, exist_ok=True)
@@ -206,5 +207,57 @@ def get_ProstT5(fasta_path, output_dir):
             # Save the resulting embedding as a .npy file named after the sequence ID
             np.save(os.path.join(output_dir, f'{keys[i]}.npy'), arr=new_embed)
 
-
-
+def generate_embedding_from_sequence(sequence, protein_id="protein", 
+                                     plm='ESM2', verbose=False):
+    """
+    Generate ESM2 embedding from a protein sequence on-the-fly.
+    
+    Args:
+        sequence: Protein sequence string
+        protein_id: Identifier for the protein
+        verbose: Print progress information
+    
+    Returns:
+        Embedding tensor of shape (emb_dim, L)
+    """
+    if verbose:
+        print(f"\nGenerating ESM2 embedding for {protein_id}...")
+        print(f"Sequence length: {len(sequence)} residues")
+    
+    # Clean sequence (replace unusual amino acids with X)
+    sequence = re.sub(r"[UZOB]", "X", sequence.upper())
+    
+    # Create temporary directory for embedding
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        
+        # Write sequence to temporary FASTA file
+        fasta_path = temp_dir / "temp.fasta"
+        with open(fasta_path, 'w') as f:
+            f.write(f">{protein_id}\n{sequence}\n")
+        
+        # Generate embedding using ESM2
+        if verbose:
+            print("Loading ESM2 model and generating embedding...")
+        
+        # plms.get_esm2(fasta_path=str(fasta_path), output_dir=str(temp_dir))
+        if plm == 'ESM2':
+            get_esm2(fasta_path=str(fasta_path), output_dir=str(temp_dir))
+        if plm in ['esmc_300m','esmc_600m']:
+            get_esmc(fasta_path=str(fasta_path), output_dir=str(temp_dir), esmc_model=plm)
+        if plm == 'ProtT5':
+            get_ProtT5(fasta_path=str(fasta_path), output_dir=str(temp_dir))
+        if plm == 'ProstT5':
+            get_ProstT5(fasta_path=str(fasta_path), output_dir=str(temp_dir))
+        
+        # Load the generated embedding
+        emb_file = temp_dir / f"{protein_id}.npy"
+        if not emb_file.exists():
+            raise RuntimeError(f"Failed to generate embedding: {emb_file} not found")
+        emb = np.load(emb_file)
+        # emb = emb.T # Transpose to (emb_dim, L) format
+        
+        if verbose:
+            print(f"Embedding generated successfully: shape {emb.shape}")
+        
+        return tr.tensor(emb, dtype=tr.float32)

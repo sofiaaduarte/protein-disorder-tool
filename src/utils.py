@@ -202,36 +202,6 @@ class ConfigLoader:
         with open(path, 'r') as f:
             return yaml.safe_load(f)
 
-class ResultsTable():
-    """Save results in a DataFrame and export to CSV."""
-    def __init__(self):
-        """Initializes the ResultsTable"""
-        self.metrics = ["auc", "aps", "f1", "mcc", 
-                        "err", "balanced_acc", "precision", "recall"]
-        self.df = pd.DataFrame(columns=["Dataset"] + self.metrics)
-
-    def add_entry(self, dataset, **metrics):
-        """Add a new entry to the results DataFrame"""
-        new_row = {"Dataset": dataset}
-
-        for metric in self.metrics:
-            if metric in metrics:
-                new_row[metric] = round(metrics[metric], 3)
-            else:
-                new_row[metric] = float('nan')
-
-        self.df.loc[len(self.df)] = new_row
-
-    def save(self, filepath):
-        """Save the results DataFrame to a CSV file"""
-        filepath = Path(filepath)
-        filepath.parent.mkdir(parents=True, exist_ok=True)  
-        self.df.to_csv(filepath, index=False)
-
-    def print(self):
-        """Print the results DataFrame in a tabular format"""
-        print(tabulate(self.df, headers='keys', tablefmt='pretty', showindex=False))
-
 class TimeTracker:
     def __init__(self):
         """
