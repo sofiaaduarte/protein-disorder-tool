@@ -1,0 +1,26 @@
+batch_size: 16
+class_type: binary
+# data_path: /home/sduarte/data/binary/
+debug: false
+# device: cuda:0
+# emb_path: /home/sduarte/data/embeddings/ProtT5/
+filters: 150
+kernel_size: 7
+label_win_len: 25
+lr: 1.0e-05
+medfilt: 3
+minscore: 0.0
+n_resnet: 1
+nepoch: 500
+# nworkers: 12
+patience: 10
+plm: ProtT5
+scoreArea: true
+scoreCoverage: true
+soft_max: true
+step: 1
+th: 0.0
+th_label: 0.5
+use_medfilt: false
+win_len: 25
+dataset: secondment

@@ -1,0 +1,15 @@
+batch_size: 32
+categories:
+- structured
+- disordered
+dataset: secondment
+debug: false
+filters: 150
+kernel_size: 9
+lr: 1.0e-05
+n_resnet: 1
+nepoch: 500
+patience: 10
+plm: esm2
+soft_max: true
+win_len: 36
