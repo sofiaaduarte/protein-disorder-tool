@@ -1,20 +1,12 @@
 torch
-scikit-learn
 numpy
 pandas
-matplotlib
-seaborn
 scipy
-biopython
-ruamel.yaml
-pyyaml
-tqdm
-optuna
-tabulate
-ipykernel
-jupyter
-tensorboard
+scikit-learn
+fair-esm
 transformers
 sentencepiece
-# esm?
-# QUEDA PENDIENTE REVISAR ESTO!!
+biopython
+pyyaml
+tqdm
+matplotlib

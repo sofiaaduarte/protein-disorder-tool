@@ -43,7 +43,7 @@ def parser(): # * ESTA OK!
         help='Output file to save plot (.png or .pdf)'
     )
     parser.add_argument(
-        '--device',
+        '--device', '-d',
         type=str,
         default='cuda',
         help='Device to run predictions on (e.g., "cpu", "cuda", "cuda:0", "cuda:1")'
