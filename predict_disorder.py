@@ -4,6 +4,7 @@ Predict disorder from protein embeddings using a trained model
 import argparse
 import numpy as np
 import torch as tr
+import pandas as pd
 from pathlib import Path
 from src.model import BaseModel
 from src.utils import ConfigLoader, predict_sliding_window, get_embedding_size, calculate_disorder_percentage
@@ -31,16 +32,12 @@ def parser(): # * ESTA OK!
              'The disorder prediction model was trained using embeddings from this pLM'
     )
     parser.add_argument(
-        '--output', '-o',
+        '--output-dir', '-o',
         type=str,
-        default=None,
-        help='Output file to save predictions (.csv)'
-    )
-    parser.add_argument(
-        '--plot', '-p',
-        type=str,
-        default=None,
-        help='Output file to save plot (.png or .pdf)'
+        default='results/',
+        help='Output directory to save predictions (.csv) and plots (.png). '
+             'If not provided, predictions and plots will be saved in the "results/" directory,'
+             'with filenames based on the input FASTA file.'
     )
     parser.add_argument(
         '--device', '-d',
@@ -137,35 +134,32 @@ def main():
     print(f"Disordered residues:   {stats['disordered_residues']} (>{threshold} threshold)")
     print(f"Disorder percentage:   {stats['disorder_percentage']:.2f}%")
     
-    # Generate plot if needed
-    if args.plot:
-        plot_output = Path(args.plot)
-        plot_disorder_prediction(
-            centers, 
-            predictions, 
-            protein_id, 
-            threshold=threshold,
-            output_path=plot_output
-        )
-    
-    # Save predictions if requested
-    if args.output:
-        output_path = Path(args.output)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        if output_path.suffix == '.csv':
-            import pandas as pd
-            df = pd.DataFrame({
-                'position': centers,
-                'structured_score': predictions[:, 0].numpy(),
-                'disordered_score': predictions[:, 1].numpy(),
-                'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
-            })
-            df.to_csv(output_path, index=False)
-            print(f"\nPredictions saved to: {output_path}")
-        else:
-            print(f"\nUnknown output format: {output_path.suffix}")
-            print("   Supported formats: .csv")
+    # Save outputs -------------------------------------------------------------
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save plot
+    output_plot = output_dir / f"{protein_id}_plot.png"
+    plot_disorder_prediction(
+        centers, 
+        predictions, 
+        protein_id, 
+        threshold=threshold,
+        output_path=output_plot
+    )
+
+    # Save predictions to CSV
+    output_csv = output_dir / f"{protein_id}_predictions.csv"
+    df = pd.DataFrame({
+        'position': centers,
+        'disordered_score': predictions[:, 1].numpy(),
+        'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
+    })
+    df.to_csv(output_csv, index=False)
+
+    if args.verbose:
+        print(f"Plot saved to: {output_plot}")
+        print(f"Predictions saved to: {output_csv}")
     
     return stats
 

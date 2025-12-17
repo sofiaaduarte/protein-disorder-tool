@@ -26,7 +26,7 @@ def _parse_device(device: str) -> torch.device:
 def get_esm2(sequences, protein_ids, output_dir, device='cuda'):
     device = _parse_device(device)
     
-    # Load model from fair-esm package
+    # Load model
     model, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
     num_repr_layer = 33  
 

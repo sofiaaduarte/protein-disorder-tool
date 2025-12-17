@@ -7,9 +7,6 @@ from torch.nn.functional import softmax
 from time import time
 from datetime import datetime
 from pathlib import Path
-# from io import StringIO
-# from tabulate import tabulate
-# from torch.utils.data import DataLoader
 from scipy.signal import medfilt
 
 def calculate_disorder_percentage(predictions, threshold=0.5) -> dict:
@@ -88,54 +85,6 @@ def get_embedding_size(plm_name: str) -> int:
         return plm_sizes[plm_name]
     else:
         raise ValueError(f"Unknown PLM name: {plm_name}")
-
-# def load_data(
-#         data_path: str,
-#         config: dict,
-#         sampling_mode: str = 'segment',  # 'segment' o 'residue'
-#         is_training: bool = True,
-#         num_workers: int = 1,
-#         categories: tuple = ('structured', 'disordered'),
-#     ) -> tuple [DataLoader, int]:
-#     """
-#     Loads a dataset for training or evaluation and returns a DataLoder and its length.
-
-#     Args:
-#         data_path: Path to the data source or file.
-#         config: Configuration dictionary.
-#         sampling_mode: How to sample the data:
-#             - 'segment': One sample per protein region/domain (SegmentDataset)
-#             - 'residue': One sample per amino acid, sliding window (AminoAcidDataset)
-#         is_training: Whether this is a training run (enables shuffle and 
-#                      centered window in segment).
-#         num_workers: Number of workers for DataLoader.
-#         categories: Categories to classify sequences. 
-
-#     Returns:
-#         A tuple containing the DataLoader and the length of the dataset.
-#     """
-#     # Config values
-#     debug = config.get('debug', False)
-#     emb_path = config['emb_path']
-#     win_len = config['win_len']
-#     batch_size = config['batch_size']
-
-#     # Create dataset based on sampling mode
-#     if sampling_mode == 'segment':
-#         dataset = SegmentDataset(data_path, emb_path, categories, win_len,
-#                                  is_training=is_training, debug=debug)
-#     elif sampling_mode == 'residue': 
-#         dataset = AminoAcidDataset(data_path, emb_path, win_len=win_len, 
-#                                    categories=categories, debug=debug)
-#     else:
-#         raise ValueError(f"Unknown sampling_mode: {sampling_mode}")
-
-#     # Create DataLoader
-#     loader = DataLoader(dataset, batch_size=batch_size,
-#                         shuffle=is_training, num_workers=num_workers, 
-#                         pin_memory=False) # Disabled to reduce memory usage
-
-#     return loader, len(dataset)
 
 class ConfigLoader:
     def __init__(self, 
