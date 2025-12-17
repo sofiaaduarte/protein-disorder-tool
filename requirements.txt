@@ -10,3 +10,4 @@ biopython
 pyyaml
 tqdm
 matplotlib
+seaborn

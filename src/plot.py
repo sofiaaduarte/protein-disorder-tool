@@ -1,65 +1,69 @@
 import matplotlib.pyplot as plt
-import numpy as np
+import seaborn as sns
+import pandas as pd
 from pathlib import Path
 
 def plot_disorder_prediction(centers, predictions, protein_id, threshold=0.5, 
-                            output_path=None, highlight_regions=True, style='default',
-                            figsize=(12, 5)):
+                            output_path=None, figsize=(12, 5)):
     """
-    Plot disorder predictions.
+    Plot disorder predictions for a given protein.
     
     Args:
         centers: Array of center positions
         predictions: Prediction scores (structured, disordered) for each position
         protein_id: Protein identifier (acc)
         threshold: Threshold line used to classify residues as disordered
-        smooth_window: Window size for smoothing (0 = no smoothing)
         output_path: Path to save the plot (None = display only)
+        figsize: Figure size
     """
     pred = predictions.numpy()
-    
-    # Create figure
+    df = pd.DataFrame({
+        'Position': centers,
+        'Disorder Score': pred[:, 1]
+    })
+
+    sns.set_theme(style='ticks')
     fig, ax = plt.subplots(figsize=figsize)
     
+    # Identify disordered regions based on threshold
+    disordered_mask = pred[:, 1] > threshold
+    regions = []
+    start = None
+    for i, is_disordered in enumerate(disordered_mask):
+        if is_disordered and start is None:
+            start = i
+        elif not is_disordered and start is not None:
+            regions.append((centers[start], centers[i-1]))
+            start = None
+    if start is not None:
+        regions.append((centers[start], centers[-1]))
+
     # Highlight disordered regions with background color
-    if highlight_regions:
-        disordered_mask = pred[:, 1] > threshold
-        # Find continuous regions
-        regions = []
-        start = None
-        for i, is_disordered in enumerate(disordered_mask):
-            if is_disordered and start is None:
-                start = i
-            elif not is_disordered and start is not None:
-                regions.append((centers[start], centers[i-1]))
-                start = None
-        if start is not None:
-            regions.append((centers[start], centers[-1]))
-        
-        # Draw regions
-        for start, end in regions:
-            ax.axvspan(start, end, alpha=0.2, color='red', zorder=0,
-                       edgecolor=None)
+    for start, end in regions:
+        ax.axvspan(start, end, alpha=0.15, color='red', zorder=0,
+                    label='Disordered Region' if start == regions[0][0] else "")
     
     # Plot disorder score
-    ax.plot(centers, pred[:, 1], "-", color="#d62728", linewidth=2, 
-            label='Disorder score', zorder=3)
+    sns.lineplot(data=df, x='Position', y='Disorder Score', 
+                 color="#d62728", linewidth=2, ax=ax, label='Disorder Score')
     
-    # Add threshold line
+    # Plot threshold line
     ax.axhline(y=threshold, color='gray', linestyle='--', linewidth=1.5, 
                label=f'Threshold = {threshold}', zorder=1)
     
-    # Set limits and labels
+    # Set the rest of the plot aesthetics
     ax.set_xlim([centers.min(), centers.max()])
     ax.set_ylim([-0.05, 1.05])
-    ax.set_xlabel("Residue position")
-    ax.set_ylabel("Prediction score")
-    ax.set_title(f"Intrinsic Disorder Prediction - {protein_id}")
-    ax.legend(loc='upper right', fontsize=10, framealpha=0.9)
-    
-    if style != 'minimal':
-        ax.grid(alpha=0.3, linestyle=':', linewidth=0.5)
-    ax.spines[['right', 'top']].set_visible(False)
+    ax.set_xlabel("Residue Position")
+    ax.set_ylabel("Prediction Score")
+    ax.set_title(f"Disorder Prediction for {protein_id}", fontsize=14)
+
+    handles, labels = ax.get_legend_handles_labels()
+   
+    by_label = dict(zip(labels, handles)) # Remove duplicate labels
+    ax.legend(by_label.values(), by_label.keys(), # loc='upper right', 
+              frameon=True, facecolor='white', framealpha=0.8)
+    # sns.despine()
     plt.tight_layout()
     
     # Save or show
