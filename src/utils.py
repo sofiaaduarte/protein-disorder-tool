@@ -7,71 +7,38 @@ from torch.nn.functional import softmax
 from time import time
 from datetime import datetime
 from pathlib import Path
-from io import StringIO
-from tabulate import tabulate
-from torch.utils.data import DataLoader
-from src.dataset import SegmentDataset, AminoAcidDataset
+# from io import StringIO
+# from tabulate import tabulate
+# from torch.utils.data import DataLoader
 from scipy.signal import medfilt
 
-def load_data(
-        data_path: str,
-        config: dict,
-        is_segment: bool = True,
-        is_training: bool = True,
-        num_workers: int = 1,
-        categories: tuple = ('structured', 'disordered'),
-    ) -> tuple [DataLoader, int]:
+def calculate_disorder_percentage(predictions, threshold=0.5) -> dict:
     """
-    Loads a dataset for training or evaluation and returns a DataLoder and its length.
-
-    Args:
-        data_path: Path to the data source or file.
-        config: Configuration dictionary.
-        is_segment: Whether to load the segmented dataset (SegmentDataset) or 
-                    the amino-acid-level dataset (AminoAcidDataset).
-        is_training: Whether this is a training run (enables shuffle and 
-                     centered window in segment).
-        num_workers: Number of workers for DataLoader.
-        categories: Categories to classify sequences, Defaults to ("structured", "disordered"). 
-
-    Returns:
-        A tuple containing the DataLoader and the length of the dataset.
-    """
-    # IMPROVE: change "is_segment" arg name to describe better what it does
-    debug = config['debug']
-    emb_path = config['emb_path']
-    win_len = config['win_len']
-
-    if is_segment:
-        dataset = SegmentDataset(data_path, emb_path, categories, win_len,
-                                is_training=True, debug=debug)
-    else: 
-        dataset = AminoAcidDataset(data_path, emb_path, win_len=win_len, 
-                                   categories=categories, debug=debug)
-
-    loader = DataLoader(dataset, batch_size=config['batch_size'],
-                        shuffle=is_training, num_workers=num_workers, 
-                        pin_memory=False) # Disabled to reduce memory usage
-
-    return loader, len(dataset)
-
-def load_embedding(emb_path):
-    """Load and format embedding for model prediction."""
-    emb = np.load(emb_path)
-    # IMPROVE: check if this is correct!
-    # Ensure embeddings are in correct format (emb_dim, L)
-    if emb.shape[0] < emb.shape[1] and (emb.shape[0] == 1024 or emb.shape[0] == 1280):
-        # Already in correct format (emb_dim, L)
-        pass
-    elif emb.shape[1] == 1024 or emb.shape[1] == 1280:
-        # Need to transpose from (L, emb_dim) to (emb_dim, L)
-        emb = emb.T
+    Calculate the percentage of disordered residues.
     
-    return tr.tensor(emb, dtype=tr.float32)
-
+    Args:
+        predictions: Tensor of shape (L, 2) with [structured_score, disordered_score]
+        threshold: Threshold to classify residues as disordered
+    Returns:
+        Dictionary with different disorder statistics
+    """
+    # Get disordered scores
+    disorder_scores = predictions[:, 1].numpy()
+    
+    # Count residues with disorder score > threshold
+    disordered_count = np.sum(disorder_scores > threshold)
+    total_residues = len(disorder_scores)
+    disorder_percentage = (disordered_count / total_residues) * 100
+    
+    return {
+        'disorder_percentage': disorder_percentage,
+        'disordered_residues': disordered_count,
+        'total_residues': total_residues,
+        'disorder_scores': disorder_scores
+    }
 
 def predict_sliding_window(net, emb, window_len, step=1, use_softmax=True,
-                           median_filter_size=None):
+                           median_filter_size=None) -> tuple:
     """
     Predict disorder scores using a sliding window approach.
     
@@ -81,8 +48,7 @@ def predict_sliding_window(net, emb, window_len, step=1, use_softmax=True,
         window_len: Length of sliding window
         step: Step size for sliding window
         use_softmax: Whether to apply softmax to outputs
-        median_filter_size: Optional median filter kernel size for smoothing predictions
-    
+        median_filter_size: Median filter kernel size for smoothing predictions
     Returns:
         centers: Array of center positions
         predictions: Prediction scores (structured, disordered) for each position
@@ -107,7 +73,6 @@ def predict_sliding_window(net, emb, window_len, step=1, use_softmax=True,
     if median_filter_size is not None and median_filter_size > 0:
         pred = tr.tensor(medfilt(pred.numpy(), kernel_size=(median_filter_size, 1)))
 
-
     return centers, pred
 
 def get_embedding_size(plm_name: str) -> int:
@@ -123,6 +88,54 @@ def get_embedding_size(plm_name: str) -> int:
         return plm_sizes[plm_name]
     else:
         raise ValueError(f"Unknown PLM name: {plm_name}")
+
+# def load_data(
+#         data_path: str,
+#         config: dict,
+#         sampling_mode: str = 'segment',  # 'segment' o 'residue'
+#         is_training: bool = True,
+#         num_workers: int = 1,
+#         categories: tuple = ('structured', 'disordered'),
+#     ) -> tuple [DataLoader, int]:
+#     """
+#     Loads a dataset for training or evaluation and returns a DataLoder and its length.
+
+#     Args:
+#         data_path: Path to the data source or file.
+#         config: Configuration dictionary.
+#         sampling_mode: How to sample the data:
+#             - 'segment': One sample per protein region/domain (SegmentDataset)
+#             - 'residue': One sample per amino acid, sliding window (AminoAcidDataset)
+#         is_training: Whether this is a training run (enables shuffle and 
+#                      centered window in segment).
+#         num_workers: Number of workers for DataLoader.
+#         categories: Categories to classify sequences. 
+
+#     Returns:
+#         A tuple containing the DataLoader and the length of the dataset.
+#     """
+#     # Config values
+#     debug = config.get('debug', False)
+#     emb_path = config['emb_path']
+#     win_len = config['win_len']
+#     batch_size = config['batch_size']
+
+#     # Create dataset based on sampling mode
+#     if sampling_mode == 'segment':
+#         dataset = SegmentDataset(data_path, emb_path, categories, win_len,
+#                                  is_training=is_training, debug=debug)
+#     elif sampling_mode == 'residue': 
+#         dataset = AminoAcidDataset(data_path, emb_path, win_len=win_len, 
+#                                    categories=categories, debug=debug)
+#     else:
+#         raise ValueError(f"Unknown sampling_mode: {sampling_mode}")
+
+#     # Create DataLoader
+#     loader = DataLoader(dataset, batch_size=batch_size,
+#                         shuffle=is_training, num_workers=num_workers, 
+#                         pin_memory=False) # Disabled to reduce memory usage
+
+#     return loader, len(dataset)
 
 class ConfigLoader:
     def __init__(self, 
