@@ -1,65 +1,40 @@
 """
-Predict disorder from protein embeddings using a trained model.
+Predict disorder from protein embeddings using a trained model
 """
 import argparse
 import numpy as np
 import torch as tr
 from pathlib import Path
 from src.model import BaseModel
-from src.utils import ConfigLoader, load_embedding, predict_sliding_window, get_embedding_size
+from src.utils import ConfigLoader, predict_sliding_window, get_embedding_size, calculate_disorder_percentage
 from src.plms import generate_embedding_from_sequence
-from src.stats import calculate_disorder_percentage
 from src.plot import plot_disorder_prediction
-from Bio import SeqIO
 
-def parser():
+def parser(): # * ESTA OK!
     parser = argparse.ArgumentParser(
-        description='Predict disorder from protein embeddings',
+        description='Predict disorder from protein embeddings using a trained model',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        # to show the default values in help messages
     )
-    
-    # Input group, one can upload either an embedding, sequence, or fasta file
-    input_group = parser.add_mutually_exclusive_group(required=True)
-    input_group.add_argument(
-        '--embedding', '-e',
-        type=str,
-        help='Path to the embedding file (.npy)'
-    )
-    input_group.add_argument(
-        '--sequence',
-        type=str,
-        help='Protein sequence as string (will generate embedding on-the-fly)'
-    )
-    input_group.add_argument(
+    parser.add_argument(
         '--fasta', '-f',
         type=str,
+        required=True,
         help='Path to FASTA file (will generate embedding on-the-fly)'
     )
-
     parser.add_argument(
         '--model', '-m',
         type=str,
-        # required=True,
-        default='/home/sduarte/IDPfun2/results/secondment/ESM2_filt150_ker9_resnet1_win36_lr1e-05_09-12-2025_00-04-07',
-        help='Path to the model directory (containing weights.pk and config.yaml)'
+        default='ESM2',
+        choices=['ESM2', 'ProtT5'], # Later will add ['ProstT5', 'esmc_300m', 'esmc_600m'],
+        help='Protein Language Model (pLM) used for generating embeddings. '
+             'The disorder prediction model was trained using embeddings from this pLM'
     )
-    parser.add_argument(
-        '--step', '-s',
-        type=int,
-        default=1,
-        help='Step size for sliding window'
-    )
-    parser.add_argument(
-        '--threshold', '-t',
-        type=float,
-        default=0.5,
-        help='Threshold for classifying residues as disordered'
-    )   
     parser.add_argument(
         '--output', '-o',
         type=str,
         default=None,
-        help='Output file to save predictions (.npy or .csv)'
+        help='Output file to save predictions (.csv)'
     )
     parser.add_argument(
         '--plot', '-p',
@@ -68,17 +43,10 @@ def parser():
         help='Output file to save plot (.png or .pdf)'
     )
     parser.add_argument(
-        '--smooth',
-        type=int,
-        default=0,
-        help='Smoothing window size for plot (default: 3, 0 = no smoothing)'
-    )
-    parser.add_argument(
         '--device',
         type=str,
         default='cuda',
-        choices=['cuda', 'cpu'],
-        help='Device to run predictions on'
+        help='Device to run predictions on (e.g., "cpu", "cuda", "cuda:0", "cuda:1")'
     )
     parser.add_argument(
         '--verbose', '-v',
@@ -87,13 +55,21 @@ def parser():
     )
     return parser.parse_args()
 
-
-
 def main():
     args = parser()
 
+    # Validate and setup device ------------------------------------------------
+    device = args.device.lower()
+    
+    if device.startswith('cuda') and not tr.cuda.is_available():
+        raise RuntimeError("CUDA is not available. Use --device cpu")
+    
+    if args.verbose:
+        device_name = tr.cuda.get_device_name(device) if device.startswith('cuda') else 'CPU'
+        print(f"Using device: {device} ({device_name})")
+
     # Set up model path, config and weights ------------------------------------
-    model_dir = Path(args.model)
+    model_dir = Path(f"model/{args.model}/model0/")
     if not model_dir.exists():
         raise FileNotFoundError(f"Model directory not found: {model_dir}")
     
@@ -105,13 +81,14 @@ def main():
     if not weights_path.exists():
         raise FileNotFoundError(f"Weights file not found: {weights_path}")
     
-    # Load configuration -------------------------------------------------------
+    # Load model configuration -------------------------------------------------
     if args.verbose:
         print(f"Model directory: {model_dir}")
         print(f"Loading configuration from: {config_path}")
     config_loader = ConfigLoader(model_path=str(config_path))
     config = config_loader.load()
-    window_len = config.get('win_len', 13) # window length
+    window_len = config.get('win_len', 13)
+    threshold = config.get('threshold', 0.5)
     
     # Initialize model ---------------------------------------------------------
     if args.verbose:
@@ -120,69 +97,44 @@ def main():
     model = BaseModel(
         len(categories),
         lr=config['lr'],
-        device=args.device,
+        device=device,
         emb_size=get_embedding_size(config.get('plm', 'esm2')),
         filters=config['filters'],
         kernel_size=config['kernel_size'],
         num_layers=config['n_resnet']
     )
-    model.load_state_dict(tr.load(weights_path, map_location=args.device))
+    model.load_state_dict(tr.load(weights_path, map_location=device))
     model.eval()
     
-    # Load or generate embedding -----------------------------------------------
-    if args.embedding:
-        # Load pre-computed embedding
-        if args.verbose:
-            print(f"Loading embedding from: {args.embedding}")
-        emb = load_embedding(args.embedding)
-        protein_id = Path(args.embedding).stem
+    # Load FASTA and generate embedding ----------------------------------------
+    emb, protein_id = generate_embedding_from_sequence(
+        fasta_path=args.fasta,
+        plm=args.model, 
+        verbose=args.verbose,
+        device=device
+    )
     
-    elif args.sequence:
-        # Generate embedding from sequence
-        protein_id = "sequence"
-        emb = generate_embedding_from_sequence(args.sequence, protein_id, args.verbose)
-    
-    elif args.fasta:
-        # Generate embedding from FASTA file
-        if args.verbose:
-            print(f"Reading FASTA file: {args.fasta}")
-        
-        # Read first sequence from FASTA
-        with open(args.fasta, 'r') as f:
-            records = list(SeqIO.parse(f, "fasta"))
-        
-        if not records:
-            raise ValueError(f"No sequences found in FASTA file: {args.fasta}")
-        
-        if len(records) > 1 and args.verbose:
-            print(f"Warning: Multiple sequences found, using only the first one: {records[0].id}")
-        
-        protein_id = records[0].id
-        sequence = str(records[0].seq)
-        emb = generate_embedding_from_sequence(sequence, protein_id, args.verbose)
-    
-    else:
-        raise ValueError("No input provided. Use --embedding, --sequence, or --fasta")
-    
-    print(f"\nEmbedding shape: {emb.shape}")
-    print(f"Protein ID: {protein_id}")
-    print(f"Sequence length: {emb.shape[1]} residues")
+    if args.verbose:
+        print(f"Protein ID: {protein_id}")
+        print(f"Sequence length: {emb.shape[1]} residues")
     
     # Predict ------------------------------------------------------------------
-    print(f"\nPredicting disorder (window={window_len}, step={args.step})...")
+    if args.verbose:
+        print(f"\nPredicting disorder (window={window_len}) ")
     centers, predictions = predict_sliding_window(
-        model, emb, window_len, step=args.step, 
+        model, emb, window_len, step=1, 
         use_softmax=config.get('soft_max', True),
-        median_filter_size=args.smooth if args.smooth > 0 else None
+        median_filter_size=None  # No smoothing
     )
     
     # Calculate disorder percentage
-    stats = calculate_disorder_percentage(predictions, threshold=args.threshold)
+    stats = calculate_disorder_percentage(predictions, 
+                                          threshold=threshold)
     
     # Print results
     print(f"DISORDER PREDICTION RESULTS FOR: {protein_id}")
     print(f"Total residues:        {stats['total_residues']}")
-    print(f"Disordered residues:   {stats['disordered_residues']} (>{args.threshold} threshold)")
+    print(f"Disordered residues:   {stats['disordered_residues']} (>{threshold} threshold)")
     print(f"Disorder percentage:   {stats['disorder_percentage']:.2f}%")
     
     # Generate plot if needed
@@ -192,7 +144,7 @@ def main():
             centers, 
             predictions, 
             protein_id, 
-            threshold=args.threshold,
+            threshold=threshold,
             output_path=plot_output
         )
     
@@ -201,24 +153,19 @@ def main():
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        if output_path.suffix == '.npy':
-            np.save(output_path, predictions.numpy())
-            print(f"\nPredictions saved to: {output_path}")
-        
-        elif output_path.suffix == '.csv':
+        if output_path.suffix == '.csv':
             import pandas as pd
             df = pd.DataFrame({
                 'position': centers,
                 'structured_score': predictions[:, 0].numpy(),
                 'disordered_score': predictions[:, 1].numpy(),
-                'predicted_label': (predictions[:, 1] > args.threshold).numpy().astype(int)
+                'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
             })
             df.to_csv(output_path, index=False)
             print(f"\nPredictions saved to: {output_path}")
-        
         else:
             print(f"\nUnknown output format: {output_path.suffix}")
-            print("   Supported formats: .npy, .csv")
+            print("   Supported formats: .csv")
     
     return stats
 
