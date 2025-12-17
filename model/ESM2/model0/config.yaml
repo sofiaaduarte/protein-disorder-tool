@@ -13,3 +13,4 @@ patience: 10
 plm: esm2
 soft_max: true
 win_len: 36
+threshold: 0.5

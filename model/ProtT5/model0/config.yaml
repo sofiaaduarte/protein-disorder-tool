@@ -24,3 +24,4 @@ th_label: 0.5
 use_medfilt: false
 win_len: 25
 dataset: secondment
+threshold: 0.5
