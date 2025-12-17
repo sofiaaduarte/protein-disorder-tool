@@ -173,21 +173,21 @@ def get_ProstT5(sequences, protein_ids, output_dir, device='cuda'):
 
         np.save(os.path.join(output_dir, f'{prot_id}.npy'), arr=new_embed)
 
-def generate_embedding_from_sequence(
+def generate_embeddings_from_fasta(
         fasta_path: str, 
         plm: str = 'ESM2', 
         verbose: bool = False, 
         device: str = 'cuda'
-        ) -> tuple[torch.Tensor, str]:
+        ) -> list[tuple[torch.Tensor, str]]:
     """
-    Generate embedding from a FASTA file on-the-fly.
+    Generate embeddings from all sequences in a FASTA file on-the-fly.
     Args:
-        fasta_path: Path to FASTA file (reads first sequence)
+        fasta_path: Path to FASTA file
         plm: Protein language model to use ('ESM2', 'ProtT5')
         verbose: Print progress information
         device: Device to use ('cpu', 'cuda', 'cuda:0', etc.)
     Returns:
-        tuple: (embedding tensor of shape (emb_dim, L), protein_id)
+        list: List of tuples (embedding tensor of shape (emb_dim, L), protein_id)
     """
     if verbose:
         print(f"Reading FASTA file: {fasta_path}")
@@ -198,50 +198,57 @@ def generate_embedding_from_sequence(
     if not records:
         raise ValueError(f"No sequences found in FASTA file: {fasta_path}")
     
-    if len(records) > 1 and verbose:
-        print(f"Warning: Multiple sequences found, using only the first one: {records[0].id}")
+    if verbose:
+        print(f"Found {len(records)} sequences in FASTA file.")
     
-    protein_id = records[0].id
-    sequence = str(records[0].seq)
-    
-    # Clean sequence (replace unusual amino acids with X)
-    sequence = re.sub(r"[UZOB]", "X", sequence.upper())
+    protein_ids = [r.id for r in records]
+    sequences = []
+    for r in records:
+        seq = str(r.seq)
+        # Clean sequence (replace unusual amino acids with X)
+        seq = re.sub(r"[UZOB]", "X", seq.upper())
+        sequences.append(seq)
     
     if verbose:
-        print(f"\nGenerating {plm} embedding for {protein_id}...")
-        print(f"Sequence length: {len(sequence)} residues")
+        print(f"\nGenerating {plm} embeddings...")
         print(f"Using device: {device}")
     
     # Create temporary directory for embedding output
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir = Path(temp_dir)
         
-        # Generate embedding using specified PLM (pass sequence directly, no FASTA file needed)
+        # Generate embeddings using specified PLM
         if verbose:
-            print(f"Loading {plm} model and generating embedding...")
+            print(f"Loading {plm} model and generating embeddings...")
         
         if plm == 'ESM2':
-            get_esm2(sequences=[sequence], protein_ids=[protein_id], 
+            get_esm2(sequences=sequences, protein_ids=protein_ids, 
                      output_dir=str(temp_dir), device=device)
         elif plm in ['esmc_300m', 'esmc_600m']:
-            get_esmc(sequences=[sequence], protein_ids=[protein_id], 
+            get_esmc(sequences=sequences, protein_ids=protein_ids, 
                      output_dir=str(temp_dir), esmc_model=plm, device=device)
         elif plm == 'ProtT5':
-            get_ProtT5(sequences=[sequence], protein_ids=[protein_id], 
+            get_ProtT5(sequences=sequences, protein_ids=protein_ids, 
                        output_dir=str(temp_dir), device=device)
         elif plm == 'ProstT5':
-            get_ProstT5(sequences=[sequence], protein_ids=[protein_id], 
+            get_ProstT5(sequences=sequences, protein_ids=protein_ids, 
                         output_dir=str(temp_dir), device=device)
         else:
             raise ValueError(f"Unknown PLM: {plm}. Choose from: ESM2, ProtT5, ProstT5, esmc_300m, esmc_600m")
         
-        # Load the generated embedding
-        emb_file = temp_dir / f"{protein_id}.npy"
-        if not emb_file.exists():
-            raise RuntimeError(f"Failed to generate embedding: {emb_file} not found")
-        emb = np.load(emb_file)
+        # Load the generated embeddings
+        results = []
+        for protein_id in protein_ids:
+            emb_file = temp_dir / f"{protein_id}.npy"
+            if not emb_file.exists():
+                if verbose:
+                    print(f"Warning: Failed to generate embedding for {protein_id}")
+                continue
+            
+            emb = np.load(emb_file)
+            results.append((torch.tensor(emb, dtype=torch.float32), protein_id))
         
         if verbose:
-            print(f"Embedding generated successfully: shape {emb.shape}")
+            print(f"Successfully generated {len(results)} embeddings.")
         
-        return torch.tensor(emb, dtype=torch.float32), protein_id
+        return results

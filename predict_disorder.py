@@ -8,7 +8,7 @@ import pandas as pd
 from pathlib import Path
 from src.model import BaseModel
 from src.utils import ConfigLoader, predict_sliding_window, get_embedding_size, calculate_disorder_percentage
-from src.plms import generate_embedding_from_sequence
+from src.plms import generate_embeddings_from_fasta
 from src.plot import plot_disorder_prediction
 
 def parser(): # * ESTA OK!
@@ -103,65 +103,73 @@ def main():
     model.load_state_dict(tr.load(weights_path, map_location=device))
     model.eval()
     
-    # Load FASTA and generate embedding ----------------------------------------
-    emb, protein_id = generate_embedding_from_sequence(
+    # Load FASTA and generate embeddings ---------------------------------------
+    results = generate_embeddings_from_fasta(
         fasta_path=args.fasta,
         plm=args.model, 
         verbose=args.verbose,
         device=device
     )
     
-    if args.verbose:
-        print(f"Protein ID: {protein_id}")
-        print(f"Sequence length: {emb.shape[1]} residues")
-    
-    # Predict ------------------------------------------------------------------
-    if args.verbose:
-        print(f"\nPredicting disorder (window={window_len}) ")
-    centers, predictions = predict_sliding_window(
-        model, emb, window_len, step=1, 
-        use_softmax=config.get('soft_max', True),
-        median_filter_size=None  # No smoothing
-    )
-    
-    # Calculate disorder percentage
-    stats = calculate_disorder_percentage(predictions, 
-                                          threshold=threshold)
-    
-    # Print results
-    print(f"DISORDER PREDICTION RESULTS FOR: {protein_id}")
-    print(f"Total residues:        {stats['total_residues']}")
-    print(f"Disordered residues:   {stats['disordered_residues']} (>{threshold} threshold)")
-    print(f"Disorder percentage:   {stats['disorder_percentage']:.2f}%")
-    
-    # Save outputs -------------------------------------------------------------
+    # Predict disorder for all the proteins and save results -------------------
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save plot
-    output_plot = output_dir / f"{protein_id}_plot.png"
-    plot_disorder_prediction(
-        centers, 
-        predictions, 
-        protein_id, 
-        threshold=threshold,
-        output_path=output_plot
-    )
+    all_stats = []
 
-    # Save predictions to CSV
-    output_csv = output_dir / f"{protein_id}_predictions.csv"
-    df = pd.DataFrame({
-        'position': centers,
-        'disordered_score': predictions[:, 1].numpy(),
-        'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
-    })
-    df.to_csv(output_csv, index=False)
+    # For each protein embedding and ID
+    for emb, protein_id in results:
+        if args.verbose:
+            print(f"\n--- Processing Protein: {protein_id} ---")
+            print(f"Sequence length: {emb.shape[1]} residues")
+        
+        # Predict --------------------------------------------------------------
+        if args.verbose:
+            print(f"Predicting disorder (window={window_len}) ")
+        centers, predictions = predict_sliding_window(
+            model, emb, window_len, step=1, 
+            use_softmax=config.get('soft_max', True),
+            median_filter_size=None  # No smoothing
+        )
+        
+        # Calculate disorder percentage
+        stats = calculate_disorder_percentage(predictions, 
+                                              threshold=threshold)
+        
+        # Print results
+        print(f"\nDISORDER PREDICTION RESULTS FOR: {protein_id}")
+        print(f"Total residues:        {stats['total_residues']}")
+        print(f"Disordered residues:   {stats['disordered_residues']} (>{threshold} threshold)")
+        print(f"Disorder percentage:   {stats['disorder_percentage']:.2f}%")
+        
+        # Save outputs ---------------------------------------------------------
 
-    if args.verbose:
-        print(f"Plot saved to: {output_plot}")
-        print(f"Predictions saved to: {output_csv}")
+        # Save plot
+        output_plot = output_dir / f"{protein_id}_plot.png"
+        plot_disorder_prediction(
+            centers, 
+            predictions, 
+            protein_id, 
+            threshold=threshold,
+            output_path=output_plot
+        )
+
+        # Save predictions to CSV
+        output_csv = output_dir / f"{protein_id}_predictions.csv"
+        df = pd.DataFrame({
+            'position': centers,
+            'disordered_score': predictions[:, 1].numpy(),
+            'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
+        })
+        df.to_csv(output_csv, index=False)
+
+        if args.verbose:
+            print(f"Plot saved to: {output_plot}")
+            print(f"Predictions saved to: {output_csv}")
+        
+        all_stats.append(stats)
     
-    return stats
+    return all_stats
 
 if __name__ == '__main__':
     main()
