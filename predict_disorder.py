@@ -59,7 +59,8 @@ def main():
     device = args.device.lower()
     
     if device.startswith('cuda') and not tr.cuda.is_available():
-        raise RuntimeError("CUDA is not available. Use --device cpu")
+        device = 'cpu'
+        print("Warning: CUDA is not available. Switching to CPU.")
     
     if args.verbose:
         device_name = tr.cuda.get_device_name(device) if device.startswith('cuda') else 'CPU'
