@@ -114,10 +114,10 @@ class ConfigLoader:
         self.model = self._load_yaml(self.model_path)
         env = self._load_yaml(self.env_path)
         self.config = {**self.model, **env}
-        # add plm to emb_path
-        emb_path = self.config['emb_path']
-        emb_path = Path(emb_path) / self.config.get('plm', 'esm2') 
-        self.config['emb_path'] = f"{str(emb_path)}/"
+        # # add plm to emb_path
+        # emb_path = self.config['emb_path']
+        # emb_path = Path(emb_path) / self.config.get('plm', 'esm2') 
+        # self.config['emb_path'] = f"{str(emb_path)}/"
         return self.config
     
     def save(self, path: str):
