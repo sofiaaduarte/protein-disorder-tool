@@ -1,9 +1,0 @@
-Event,Timestamp,Elapsed Time (minutes)
-Start,2025-04-15 17:23:44,
-Trained the model,2025-04-15 17:26:32,2.7940643668174743
-Tested the model for dev,2025-04-15 17:26:49,3.0721794724464417
-Tested the model for disorder_pdb_caid3,2025-04-15 17:27:05,3.3440624475479126
-Tested the model for disorder_nox_caid3,2025-04-15 17:27:15,3.5091658433278403
-Tested the model for binding_caid3,2025-04-15 17:27:19,3.568175538380941
-Tested the model for linker_caid3,2025-04-15 17:27:20,3.6001131772994994
-End,2025-04-15 17:27:20,3.600114373366038
