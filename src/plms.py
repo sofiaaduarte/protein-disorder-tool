@@ -126,6 +126,8 @@ def get_ProtT5(sequences, protein_ids, output_dir, device='cuda'):
 
             # Save the embedding as a .npy file using the sequence ID
             np.save(os.path.join(output_dir, f'{prot_id}.npy'), arr=new_embed)
+        else:
+            print(f"Warning: Sequence {prot_id} is too long ({seq_len} residues) for ProtT5. Skipping.")
 
 
 def get_ProstT5(sequences, protein_ids, output_dir, device='cuda'):
@@ -168,6 +170,7 @@ def get_ProstT5(sequences, protein_ids, output_dir, device='cuda'):
 
         np.save(os.path.join(output_dir, f'{prot_id}.npy'), arr=new_embed)
 
+
 def generate_embeddings_from_fasta(
         fasta_path: str, 
         plm: str = 'ESM2', 
@@ -208,6 +211,11 @@ def generate_embeddings_from_fasta(
             print(f"Warning: Sequence {r.id} is too long ({len(seq)} residues) for ESM2. "
                   f"Truncating to 1024 residues.")
             seq = seq[:1024]
+        # Truncate if ProtT5/ProstT5 and length > 4000
+        elif plm in ['ProtT5', 'ProstT5'] and len(seq) > 4000:
+            print(f"Warning: Sequence {r.id} is too long ({len(seq)} residues) for ProtT5/ProstT5. "
+                  f"Truncating to 4000 residues.")
+            seq = seq[:4000]
             
         sequences.append(seq)
     
