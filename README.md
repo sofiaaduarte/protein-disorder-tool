@@ -24,100 +24,58 @@ pip install -r requirements.txt
 
 ## Usage
 
-The main script is `predict_disorder.py`. You need to provide a FASTA file:
+The main script is `predict_disorder.py`. You can provide a FASTA file containing one or more protein sequences:
 
 ```bash
-python predict_disorder.py --fasta data/sample.fasta
+python predict_disorder.py --fasta data/samples.fasta
 ```
 
 This script will:
-- Read the first sequence from the FASTA file
-- Generate embeddings using ESM2 (default model)
-- Predict disorder scores for each residue
-- Print disorder statistics to the console
+- Read all sequences from the FASTA file.
+- Generate embeddings using the specified pLM (ESM2 by default).
+- Predict disorder scores for each residue using a sliding window approach.
+- Save results (CSV and plots) to the output directory.
+- Print disorder statistics to the console.
 
-This are the available command-line arguments:
+### Command-line Arguments
 
 | Argument | Short | Description |
 |----------|-------|-------------|
-| `--fasta` | `-f` | Path to input FASTA file (required) |
-| `--model` | `-m` | Protein language model: `ESM2` (default) or `ProtT5` |
-| `--output` | `-o` | Output CSV file with predictions |
-| `--plot` | `-p` | Output plot file (`.png` or `.pdf`) |
-| `--device` | `-d` | Device: `cpu`, `cuda` (default), `cuda:0`, `cuda:1`, etc. |
-| `--verbose` | `-v` | Enable verbose output |
+| `--fasta` | `-f` | Path to input FASTA file (Required). |
+| `--model` | `-m` | Protein language model: `ESM2` (default) or `ProtT5`. |
+| `--output-dir` | `-o` | Directory to save predictions (.csv) and plots (.png). Default: `results/`. |
+| `--device` | `-d` | Device: `cpu`, `cuda` (default), `cuda:0`, etc. |
+| `--verbose` | `-v` | Enable verbose output for detailed progress. Default: `False`. |
+
+### Important Notes
+- **ESM2 Sequence Limit**: The ESM2 model supports protein sequences up to 1024 residues. Any input exceeding this length will be truncated automatically, and a warning will be issued if this occurs.
+- **Sequence preprocessing**: Non-canonical amino acids (U, Z, O, B) are automatically converted to 'X' before generating embeddings.
+- **Device**: The tool runs on GPU (CUDA) by default for faster processing. Use the `--device cpu` flag to run the tool on a CPU.
+
 
 ### Examples
 
-**1. Generate a disorder plot:**
+**1. Basic usage:**
 ```bash
-python predict_disorder.py --fasta data/sample.fasta --plot results/sample_plot.png
+python predict_disorder.py --fasta data/samples.fasta
 ```
 
-**2. Save predictions to CSV:**
+**2. Specify output directory and verbose mode:**
 ```bash
-python predict_disorder.py --fasta data/sample.fasta --output results/sample_predictions.csv
+python predict_disorder.py --fasta data/samples.fasta --output-dir my_results/ --verbose
 ```
 
-**3. Use ProtT5 model:**
+**3. Use ProtT5 model on CPU:**
 ```bash
-python predict_disorder.py --fasta data/sample.fasta \
-    --model ProtT5 \
-    --plot results/sample_plot.png
+python predict_disorder.py --fasta data/samples.fasta --model ProtT5 --device cpu
 ```
 
-**4. Use specific GPU (e.g., second GPU) or run on CPU:**
+**4. Use a specific GPU:**
 ```bash
-python predict_disorder.py --fasta data/sample.fasta \
-    --device cuda:1 \
-    --plot results/sample_plot.png
+python predict_disorder.py --fasta data/samples.fasta --device cuda:1
 ```
-
-```bash
-python predict_disorder.py --fasta data/sample.fasta \
-    --device cpu \
-    --output results/sample_predictions.csv
-```
-
-**6. Full pipeline with all outputs:**
-```bash
-python predict_disorder.py --fasta data/sample.fasta \
-    --model ESM2 \
-    --output results/sample_predictions.csv \
-    --plot results/sample_plot.pdf \
-    --device cuda:0 \
-    --verbose
-```
-
-## Output
-
-### Console Output
-The tool prints disorder statistics to the console. For example, for the sample protein `DP03212`:
-```
-DISORDER PREDICTION RESULTS FOR: DP03212
-Total residues:        419
-Disordered residues:   254 (>0.5 threshold)
-Disorder percentage:   60.62%
-```
-
-### CSV Output (`--output`)
-When using `--output`, a CSV file is generated with the following columns:
-- `position`: Residue position
-- `structured_score`: Probability of structured region
-- `disordered_score`: Probability of disordered region
-- `predicted_label`: Binary prediction (0=structured, 1=disordered)
-
-### Plot Output (`--plot`)
-When using `--plot`, a visualization is generated showing:
-- Disorder propensity along the sequence
-- Threshold line (default: 0.5)
-- Disordered regions highlighted
 
 ## Models
-
-## Model Performance
-Working on this section.
-
 
 ### Supported Protein Language Models
 
@@ -129,13 +87,3 @@ Working on this section.
 The disorder prediction models are trained specifically for each pLM. 
 
 Additional models will be added in future releases.
-
-### Model Architecture
-Working on this section.
-
-
-## Input Format
-The tool expects as input a protein sequence in a FASTA format. If the FASTA file contains multiple sequences, only the first sequence is processed. Unusual or non-canonical amino acids, including U, Z, O and B, are automatically converted to X before embedding generation.
-
-## Performance
-Time, memory?
