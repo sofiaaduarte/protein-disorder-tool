@@ -1,15 +1,13 @@
 import os
-import tempfile
-from Bio import SeqIO
-import numpy as np
-from tqdm import tqdm
-import torch
-from transformers import T5EncoderModel, T5Tokenizer
 import re 
-from pathlib import Path
+import torch
+import tempfile
 import esm
-import warnings
-# TODO: chequear si no estoy importando librerias de más!
+import numpy as np
+from Bio import SeqIO
+from tqdm import tqdm
+from transformers import T5EncoderModel, T5Tokenizer
+from pathlib import Path
 
 def _parse_device(device: str) -> torch.device:
     """
@@ -60,10 +58,8 @@ def compute_esmc_embed(sequence, model="esmc_300m", device="cuda"):
 
     protein = ESMProtein(sequence=sequence)
 
-    # Load model and move to device
     client = ESMC.from_pretrained(model).to(device)
 
-    # Encode the protein sequence into model-ready tensor format
     protein_tensor = client.encode(protein)
 
     # Run the model to obtain per-residue embeddings
@@ -106,7 +102,6 @@ def get_ProtT5(sequences, protein_ids, output_dir, device='cuda'):
 
     model = model.eval()
 
-    # Process each sequence
     for prot_id, seq in tqdm(zip(protein_ids, sequences)):
         seq_len = len(seq)
 
@@ -207,6 +202,13 @@ def generate_embeddings_from_fasta(
         seq = str(r.seq)
         # Clean sequence (replace unusual amino acids with X)
         seq = re.sub(r"[UZOB]", "X", seq.upper())
+        
+        # Truncate if ESM2 and length > 1024
+        if plm == 'ESM2' and len(seq) > 1024:
+            print(f"Warning: Sequence {r.id} is too long ({len(seq)} residues) for ESM2. "
+                  f"Truncating to 1024 residues.")
+            seq = seq[:1024]
+            
         sequences.append(seq)
     
     if verbose:
