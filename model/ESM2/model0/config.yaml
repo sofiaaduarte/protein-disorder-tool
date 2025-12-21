@@ -10,7 +10,7 @@ lr: 1.0e-05
 n_resnet: 1
 nepoch: 500
 patience: 10
-plm: esm2
+plm: ESM2
 soft_max: true
 win_len: 36
 threshold: 0.5

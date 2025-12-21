@@ -147,7 +147,7 @@ def main():
         # Save outputs ---------------------------------------------------------
 
         # Save plot
-        output_plot = output_dir / f"{protein_id}_plot.png"
+        output_plot = output_dir / f"{protein_id}_{args.model}_plot.png"
         plot_disorder_prediction(
             centers, 
             predictions, 
@@ -157,7 +157,7 @@ def main():
         )
 
         # Save predictions to CSV
-        output_csv = output_dir / f"{protein_id}_predictions.csv"
+        output_csv = output_dir / f"{protein_id}_{args.model}_predictions.csv"
         df = pd.DataFrame({
             'position': centers,
             'disordered_score': predictions[:, 1].numpy(),

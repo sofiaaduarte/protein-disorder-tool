@@ -244,7 +244,7 @@ def generate_embeddings_from_fasta(
             get_ProstT5(sequences=sequences, protein_ids=protein_ids, 
                         output_dir=str(temp_dir), device=device)
         else:
-            raise ValueError(f"Unknown PLM: {plm}. Choose from: ESM2, ProtT5, ProstT5, esmc_300m, esmc_600m")
+            raise ValueError(f"Unknown PLM: {plm}. Choose from: ESM2, ProtT5") # Later will add ProstT5, esmc_300m, esmc_600m
         
         # Load the generated embeddings
         results = []
