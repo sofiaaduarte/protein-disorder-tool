@@ -77,9 +77,9 @@ def get_embedding_size(plm_name: str) -> int:
     plm_sizes = {
         'ProtT5': 1024,
         'ProstT5': 1024,
-        'esm2': 1280,
-        'esmc_600m': 960,
-        'esmc_300m': 1152
+        'ESM2': 1280,
+        # 'esmc_600m': 960,
+        # 'esmc_300m': 1152
     }
     if plm_name in plm_sizes:
         return plm_sizes[plm_name]

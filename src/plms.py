@@ -53,7 +53,7 @@ def get_esm2(sequences, protein_ids, output_dir, device='cuda'):
       
 def compute_esmc_embed(sequence, model="esmc_300m", device="cuda"):
     # TODO: add this model
-    from esm.models.esmc import ESMC
+    from esm.models.esmc import ESMC # move to top if implemented!
     from esm.sdk.api import ESMProtein, LogitsConfig
 
     protein = ESMProtein(sequence=sequence)

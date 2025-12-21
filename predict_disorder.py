@@ -11,7 +11,7 @@ from src.utils import ConfigLoader, predict_sliding_window, get_embedding_size, 
 from src.plms import generate_embeddings_from_fasta
 from src.plot import plot_disorder_prediction
 
-def parser(): # * ESTA OK!
+def parser():
     parser = argparse.ArgumentParser(
         description='Predict disorder from protein embeddings using a trained model',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -26,7 +26,7 @@ def parser(): # * ESTA OK!
     parser.add_argument(
         '--model', '-m',
         type=str,
-        default='ESM2',
+        default='ProtT5',
         choices=['ESM2', 'ProtT5'], # Later will add ['ProstT5', 'esmc_300m', 'esmc_600m'],
         help='Protein Language Model (pLM) used for generating embeddings. '
              'The disorder prediction model was trained using embeddings from this pLM'
@@ -96,7 +96,7 @@ def main():
         len(categories),
         lr=config['lr'],
         device=device,
-        emb_size=get_embedding_size(config.get('plm', 'esm2')),
+        emb_size=get_embedding_size(config.get('plm', 'ProtT5')),
         filters=config['filters'],
         kernel_size=config['kernel_size'],
         num_layers=config['n_resnet']
@@ -105,6 +105,7 @@ def main():
     model.eval()
     
     # Load FASTA and generate embeddings ---------------------------------------
+    print(f"\nGenerating {args.model} embeddings for sequences in: {args.fasta}")
     results = generate_embeddings_from_fasta(
         fasta_path=args.fasta,
         plm=args.model, 
@@ -140,7 +141,7 @@ def main():
         # Print results
         print(f"\nDISORDER PREDICTION RESULTS FOR: {protein_id}")
         print(f"Total residues:        {stats['total_residues']}")
-        print(f"Disordered residues:   {stats['disordered_residues']} (>{threshold} threshold)")
+        print(f"Disordered residues:   {stats['disordered_residues']}")
         print(f"Disorder percentage:   {stats['disorder_percentage']:.2f}%")
         
         # Save outputs ---------------------------------------------------------
