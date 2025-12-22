@@ -3,7 +3,7 @@ This repository contains a deep learning tool for predicting intrinsically disor
 
 This tool generates embeddings from raw protein sequences using a pre-trained protein language model (pLM) and predicts disorder probabilities using a deep learning model that was trained with the **DisProt dataset** (2023_12) and tested on the **CAID3v3** benchmarks. The output of the tool includes per-residue disorder scores, plots of disorder along the sequence and summary statistics.
 
-TODO: ADD PHOTO
+![emb2dis](model_diagram.png)
 
 ## Environment setup
 
