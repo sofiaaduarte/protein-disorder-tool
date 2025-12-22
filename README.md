@@ -1,7 +1,7 @@
 # emb2dis: protein disorder prediction tool
 This repository contains a deep learning tool for predicting intrinsically disordered regions (IDRs) in protein sequences. 
 
-This tool generates embeddings from raw protein sequences using a pre-trained protein language model (pLM) and predicts disorder probabilities using a deep learning model that was trained with the DisProt dataset (2023_12) and tested on the CAID3v3 benchmarks. The output of the tool includes per-residue disorder scores, plots of disorder along the sequence and summary statistics.
+This tool generates embeddings from raw protein sequences using a pre-trained protein language model (pLM) and predicts disorder probabilities using a deep learning model that was trained with the **DisProt dataset** (2023_12) and tested on the **CAID3v3** benchmarks. The output of the tool includes per-residue disorder scores, plots of disorder along the sequence and summary statistics.
 
 TODO: ADD PHOTO
 
@@ -61,13 +61,10 @@ python predict_disorder.py --fasta data/samples.fasta --device cuda:1
 ## Models
 ### Supported Protein Language Models
 
-| Model | Description | Embedding Size |
-|-------|-------------|----------------|
-| **ESM2[^1]** | ESM-2 (650M parameters) | 1280 |
-| **ProtT5[^2]** | ProtT5-XL (half precision) | 1024 |
-
-[^1] Lin, Zeming, Halil Akin, Roshan Rao, Brian Hie, Zhongkai Zhu, Wenting Lu, Nikita Smetanin et al. "Evolutionary-scale prediction of atomic-level protein structure with a language model." Science 379, no. 6637 (2023): 1123-1130. Code available at: github.com/facebookresearch/esm 
-[^2] Elnaggar, Ahmed, Michael Heinzinger, Christian Dallago, Ghalia Rehawi, Yu Wang, Llion Jones, Tom Gibbs et al. "Prottrans: Toward understanding the language of life through self-supervised learning." IEEE transactions on pattern analysis and machine intelligence 44, no. 10 (2021): 7112-7127. Code available at: github.com/rostlab/ProtTrans 
+| Model | Description | Embedding Size | Reference | Repository |
+|-------|-------------|----------------|-----------|------------|
+| **ESM2** | ESM-2 (650M parameters) | 1280 | [Lin et al., 2023](https://doi.org/10.1126/science.ade2574) | [facebookresearch/esm](https://github.com/facebookresearch/esm) |
+| **ProtT5** | ProtT5-XL (half precision) | 1024 | [Elnaggar et al., 2021](https://doi.org/10.1109/TPAMI.2021.3095381) | [rostlab/ProtTrans](https://github.com/rostlab/ProtTrans) |
 
 The disorder prediction models are trained specifically for each pLM. 
 
