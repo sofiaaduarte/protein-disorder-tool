@@ -1,7 +1,6 @@
 import torch as tr
 import math
 from torch import nn
-from sklearn.metrics import f1_score, roc_auc_score, accuracy_score
 from tqdm import tqdm
 
 class BaseModel(nn.Module):
@@ -108,10 +107,14 @@ class BaseModel(nn.Module):
         self.dev_steps += 1
         test_loss /= len(dataloader)
 
-        # Hard labels are used for metrics
-        acc = accuracy_score(ref_hard, pred_bin) 
-        f1 = f1_score(ref_hard, pred_bin, average='macro',  zero_division=0)
-        auc = roc_auc_score(ref_hard, pred[:, 1], average='macro') 
+        # IMPORTANT: this metrics were used in the training/testing script, but 
+        # they are not needed in the WebDemos. So, they are commented out to avoid
+        # unnecessary dependencies (scikit-learn, in this case).
+        
+        # acc = accuracy_score(ref_hard, pred_bin) # Hard labels are used for metrics
+        # f1 = f1_score(ref_hard, pred_bin, average='macro',  zero_division=0)
+        # auc = roc_auc_score(ref_hard, pred[:, 1], average='macro') 
+        acc, f1, auc = 0, 0, 0 # placeholders
         
         return (test_loss, 1-acc, auc, f1, pred, ref_soft, ref_hard, 
                 names, centers)

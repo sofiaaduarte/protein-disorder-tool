@@ -7,7 +7,6 @@ from torch.nn.functional import softmax
 from time import time
 from datetime import datetime
 from pathlib import Path
-from scipy.signal import medfilt
 
 def calculate_disorder_percentage(predictions, threshold=0.5) -> dict:
     """
@@ -67,8 +66,11 @@ def predict_sliding_window(net, emb, window_len, step=1, use_softmax=True,
     if use_softmax:
         pred = softmax(pred, dim=1)
     
-    if median_filter_size is not None and median_filter_size > 0:
-        pred = tr.tensor(medfilt(pred.numpy(), kernel_size=(median_filter_size, 1)))
+    # This part is commented out because we are not using median filtering 
+    # to avoid unnecessary dependencies in the WebDemos (in this case, scipy.signal).
+
+    # if median_filter_size is not None and median_filter_size > 0:
+    #     pred = tr.tensor(medfilt(pred.numpy(), kernel_size=(median_filter_size, 1)))
 
     return centers, pred
 
